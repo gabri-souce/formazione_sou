@@ -73,7 +73,7 @@ fi
 # ...
 # Parameters > $9 must be enclosed in {brackets}.
 
-if [ -n "${10}" ]  #dopo il 9 parametro si deve utilizzare 
+if [ -n "${10}" ]  #dopo il 9 parametro si devono utilizzare le parentesi graffe 
 then
  echo "Parameter #10 is ${10}"
 fi
@@ -208,7 +208,7 @@ kill -USR1 $pid #invia segnale di stop/kill al processo pid che richiamera' trap
 wait $pid              # Stop the progress bar. #aspetta che il processo si fermi
 trap EXIT #fa uscire dalla funzione di trap
  
-exit $? #termina lo script con l ultimmo comando che essendo effettuato con successo dara' 0
+exit $? #termina lo script con l ultimo comando che essendo effettuato con successo dara' 0
 
 
 

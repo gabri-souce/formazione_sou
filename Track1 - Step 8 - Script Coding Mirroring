@@ -1,4 +1,5 @@
-    ''' TRACK1 - Step 8 - Script Coding Mirroring'''
+
+''' TRACK1 - Step 8 Comprensione script- Script Coding Mirroring'''
 
 cd /var/log #spostamento nella directory dei log
 cat /dev/null > messages #trasmette null (che è vuoto) a messages e messages viene svuotato ma non eliminato in modo da permettere ad altri servizi di usarlo

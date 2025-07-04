@@ -1,5 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+#Crea 2 VM Rocky e Debian ma Debian viene avviata fornendo un pagina web segreta soltanto quando riceve un ping dalla VM Rocky 
+#Per accedere alla pagina web inserire indirizzo ip (http://192.168.56.10) nel proprio browser
 
 Vagrant.configure("2") do |config|
   config.vm.define "debian1" do |debian|

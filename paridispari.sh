@@ -5,9 +5,10 @@ if ! [ "$1" -eq "$1" ]  2>/dev/null; then   #compara il numero inserito con se s
 fi                                                   
     
 #if ! [[ "$1" =~ ^[0-9]+$ ]] ; metodo n2 compreso ma lo ritengo ancora per ora complicato per me
+#Inoltre lo ritengo poco affidabile in quanto non controlla valori come lo 0 e caratteri speciali
 
 for (( i=1; i<=$1; i++ )); do # l iteratore parte da 1,confronta l argomento passato ,aumenta di 1 l iteratore
-  if (( i % 2 == 0 )); then #divide per due e quindi controlla se è pari
+  if (( i % 2 == 0 )); then #controlla se in numero è divisibile per due e quindi controlla se è pari
     echo "$i è pari"
   else
     echo "$i è dispari"

@@ -1,0 +1,45 @@
+- hosts: vagrantvm
+  become: yes
+  vars:
+    apache_sites:
+      - server_name: example1.com
+        port: 80
+        document_root: /var/www/example1.com
+        error_log: /var/log/apache2/example1-error.log
+        access_log: /var/log/apache2/example1-access.log
+      - server_name: example2.com
+        port: 8080
+        document_root: /var/www/example2.com
+        error_log: /var/log/apache2/example2-error.log
+        access_log: /var/log/apache2/example2-access.log
+
+  tasks:
+    - name: Install Apache
+      apt:
+        name: apache2
+        state: present
+        update_cache: yes
+
+    - name: Create document roots
+      file:
+        path: "{{ item.document_root }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ apache_sites }}"
+
+    - name: Deploy virtual host configs
+      template:
+        src: templates/apache_vhost.conf.j2
+        dest: "/etc/apache2/sites-available/{{ item.server_name }}.conf"
+      loop: "{{ apache_sites }}"
+
+    - name: Enable sites
+      command: a2ensite "{{ item.server_name }}.conf"
+      args:
+        creates: "/etc/apache2/sites-enabled/{{ item.server_name }}.conf"
+      loop: "{{ apache_sites }}"
+
+    - name: Reload Apache
+      service:
+        name: apache2
+        state: reloaded

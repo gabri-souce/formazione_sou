@@ -1,0 +1,19 @@
+---
+- name: Configurazione base worker
+  hosts: workers
+  become: yes
+  
+  tasks:
+    - name: Aggiorna sistema
+      apt:
+        update_cache: yes
+    
+    - name: Installa nginx
+      apt:
+        name: nginx
+        state: present
+    
+    - name: Avvia nginx
+      service:
+        name: nginx
+        state: started

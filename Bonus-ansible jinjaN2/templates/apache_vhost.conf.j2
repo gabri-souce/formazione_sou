@@ -1,0 +1,17 @@
+<VirtualHost *:{{ item.port }}>
+    ServerName {{ item.server_name }}
+    DocumentRoot {{ item.document_root }}
+
+    ErrorLog {{ item.error_log }}
+    CustomLog {{ item.access_log }} combined
+
+    <Directory {{ item.document_root }}>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+
+
+
+
+

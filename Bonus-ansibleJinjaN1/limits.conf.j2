@@ -1,0 +1,3 @@
+# Limiti per l'utente {{ target_user }}
+{{ target_user }} - nofile {% if environment == "production" %}10000{% else %}1000{% endif %}
+

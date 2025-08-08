@@ -1,0 +1,25 @@
+---
+- name: Gestione utenti macOS
+  hosts: localhost
+  connection: local
+  become: false  
+
+  vars:
+    utenti:
+      - nome: mario
+        gruppo: staff  
+        stato: present
+      - nome: luigi
+        gruppo: admin
+        stato: present
+      - nome: piero
+        gruppo: bho
+        stato: absent 
+
+  tasks:
+    - name: utenti
+      user:
+        name: "{{ item.nome }}"
+        group: "{{ item.gruppo | default('staff') }}" 
+        state: "{{ item.stato | default('present') }}"
+      loop: "{{ utenti }}"

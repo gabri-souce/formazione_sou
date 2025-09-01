@@ -1,0 +1,38 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317  # Aggiungi esplicitamente endpoint
+      http:
+        endpoint: 0.0.0.0:4318   # Aggiungi esplicitamente endpoint
+  
+
+processors:
+  batch:
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 64
+    check_interval: 5s
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:9464"
+  otlp:
+    endpoint: "jaeger:4317"
+    tls:
+     insecure: true
+  debug:  # Aggiungi questo exporter per debug
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, memory_limiter]
+      exporters: [otlp, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch, memory_limiter]
+      exporters: [prometheus, debug]
+
+

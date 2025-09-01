@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  app-python:
+    build:
+      context: ./app-python
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    networks:
+      - otel-network  # Aggiungi questa linea
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "9464:9464"
+    networks:
+      - otel-network  # Aggiungi questa linea
+    depends_on:
+      - jaeger  # Aggiungi dipendenza
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - otel-network  # Aggiungi questa linea
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - otel-network  # Aggiungi questa linea
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"
+      - "14250:14250"
+      - "14268:14268"
+      - "9411:9411"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - otel-network
+
+networks:
+  otel-network:
+    driver: bridge

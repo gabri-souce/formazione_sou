@@ -1,15 +1,20 @@
 ---
 - name: Setup Jenkins Master and Agent
-  hosts: jenkins:
+  hosts: jenkins
   become: yes
 
   collections:
     - community.docker
+  
   tasks:
-oneline
+    - name: Install Java (required for Ansible)
+      dnf:
+        name:
+          - java-11-openjdk
+        state: present
 
-    - name: Install dependenci
-      dnf: -all --graph
+    - name: Install dependencies
+      dnf:
         name:
           - epel-release
           - curl
@@ -18,7 +23,7 @@ oneline
           - python3-pip
         state: present
 
-    - name: Install required packag
+    - name: Install Docker prerequisites
       dnf:
         name:
           - yum-utils
@@ -26,10 +31,10 @@ oneline
           - lvm2
         state: present
 
-    - name: Add Docker CE repositorygabri-source
+    - name: Add Docker CE repository
       get_url:
-       url: https://download.docker.com/linux/centos/docker-ce.repo
-       dest: /etc/yum.repos.d/docker-ce.repo
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docker-ce.repo
 
     - name: Install Docker Engine
       dnf:
@@ -39,7 +44,6 @@ oneline
           - containerd.io
         state: present
         enablerepo: docker-ce-stable
-
 
     - name: Enable and start Docker
       service:
@@ -53,19 +57,13 @@ oneline
         groups: docker
         append: yes
 
-    - name: Cambia proprietà della cartella
+    - name: Crea directory jenkins_home
       file:
         path: /var/jenkins_home
-        owner: 1000   # l'UID usato da Jenkins nel container
+        state: directory
+        owner: 1000
         group: 1000
         mode: '0775'
-        recurse: yes
-
-    - name: Add jenkins user to docker group
-      user:
-        name: jenkins
-        groups: docker
-        append: yes
 
     - name: Install Python Docker SDK
       pip:
@@ -86,7 +84,7 @@ oneline
 
     - name: Crea volume Docker persistente per Jenkins
       community.docker.docker_volume:
-       name: jenkins_home
+        name: jenkins_home
 
     - name: Start Jenkins Master container
       docker_container:
@@ -101,37 +99,51 @@ oneline
           - name: jenkins_net
             ipv4_address: 172.20.0.10
         volumes:
-          - jenkins_home:/var/jenkins_home
-          - /var/run/docker.sock:/var/run/docker.sock   # <-- AGGIUNGI QUESTO
+          - "jenkins_home:/var/jenkins_home"
+          - "/var/run/docker.sock:/var/run/docker.sock"
 
-    - name: Install Docker CLI inside Jenkins container as root
+    - name: Install Docker CLI inside Jenkins container
       community.docker.docker_container_exec:
         container: jenkins_master
         command: bash -c "apt-get update && apt-get install -y docker.io"
         user: root
 
-    #- name: Wait for Jenkins to start (optional ciclo d attesa per eventuali attese di caricamento)
-     # wait_for:
-      #  port: 8080
-       # host: 127.0.0.1
-       # delay: 10
-       # timeout: 60
+    - name: Wait for Jenkins to be ready
+      wait_for:
+        port: 8080
+        host: 127.0.0.1
+        delay: 30
+        timeout: 300
 
     - name: Pull Jenkins Agent image
       docker_image:
         name: jenkins/inbound-agent
         source: pull
 
-    - name: Start Jenkins Agent container
+    - name: Get Jenkins initial admin password
+      shell: |
+        sleep 30
+        docker exec jenkins_master cat /var/jenkins_home/secrets/initialAdminPassword 2>/dev/null || echo "NOT_READY_YET"
+      register: jenkins_secret
+      until: jenkins_secret.stdout != "NOT_READY_YET"
+      retries: 10
+      delay: 10
+
+    - name: Display Jenkins admin password
+      debug:
+        msg: "Jenkins initial admin password: {{ jenkins_secret.stdout }}"
+
+    - name: Start Jenkins Agent container (manual step required)
       docker_container:
         name: jenkins_agent
         image: jenkins/inbound-agent
         state: started
         restart_policy: always
         env:
-          JENKINS_URL: http://172.20.0.10:8080
+          JENKINS_URL: "http://172.20.0.10:8080"
           JENKINS_AGENT_NAME: "agent1"
-          JENKINS_SECRET: "{{ lookup('env', 'JENKINS_SECRET') | default('REPLACE_WITH_REAL_SECRET') }}"
+          JENKINS_SECRET: "{{ lookup('env', 'JENKINS_SECRET') | default('MANUALLY_CONFIGURED_LATER') }}"
         networks:
           - name: jenkins_net
             ipv4_address: 172.20.0.11
+      ignore_errors: yes

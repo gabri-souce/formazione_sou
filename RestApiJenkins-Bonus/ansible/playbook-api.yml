@@ -1,0 +1,114 @@
+- name: Setup Jenkins Agent via API and Run Agent Container
+  hosts: jenkins
+  become: yes
+  vars_files:
+    - group_vars/jenkins/vault.yml
+
+  collections:
+    - community.docker
+
+  vars:
+    jenkins_url: "http://172.20.0.10:8080"   # IP Docker del master
+    #jenkins_user: "gab"                      # Admin Jenkins
+    #jenkins_pass: "123456"                   # Password admin
+    token_name: "ansible_token"
+    agent_name: "my_agent"
+    agent_remote_fs: "/home/jenkins/agent"
+
+  tasks:
+    # --- INSTALLAZIONE STRUMENTI ---
+    - name: Ensure jq is installed
+      dnf:
+        name: jq
+        state: present
+
+    - name: Remove old Jenkins cookies
+      file:
+        path: /tmp/cookies.txt
+        state: absent
+
+    # --- CREAZIONE TOKEN API ---
+    - name: Generate Jenkins API token
+      shell: |
+        crumb=$(curl -s -u "{{ jenkins_user }}:{{ jenkins_pass }}" \
+          -c /tmp/cookies.txt \
+          "{{ jenkins_url }}/crumbIssuer/api/json" | jq -r '.crumb')
+        curl -s -u "{{ jenkins_user }}:{{ jenkins_pass }}" \
+          -b /tmp/cookies.txt -c /tmp/cookies.txt \
+          -H "Jenkins-Crumb: $crumb" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -X POST "{{ jenkins_url }}/me/descriptorByName/jenkins.security.ApiTokenProperty/generateNewToken" \
+          --data "newTokenName={{ token_name }}" \
+          | jq -r '.data.tokenValue'
+      register: jenkins_api_token
+      changed_when: false
+
+    # --- CREAZIONE NODO AGENTE ---
+    - name: Create Jenkins agent node via API
+      shell: |
+        crumb=$(curl -s -u "{{ jenkins_user }}:{{ jenkins_api_token.stdout }}" \
+          -c /tmp/cookies.txt \
+          "{{ jenkins_url }}/crumbIssuer/api/json" | jq -r '.crumb')
+        curl -s -u "{{ jenkins_user }}:{{ jenkins_api_token.stdout }}" \
+          -b /tmp/cookies.txt -c /tmp/cookies.txt \
+          -H "Jenkins-Crumb: $crumb" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -X POST "{{ jenkins_url }}/computer/doCreateItem?name={{ agent_name }}&type=hudson.slaves.DumbSlave" \
+          --data-urlencode 'json={
+            "name": "{{ agent_name }}",
+            "numExecutors": "1",
+            "remoteFS": "{{ agent_remote_fs }}",
+            "mode": "EXCLUSIVE",
+            "launcher": {
+              "stapler-class": "hudson.slaves.JNLPLauncher"
+            }
+          }'
+      changed_when: false
+
+    # --- RECUPERO SECRET AGENTE ---
+    - name: Get Jenkins agent secret
+      shell: |
+        until secret=$(curl -s -u "{{ jenkins_user }}:{{ jenkins_api_token.stdout }}" \
+          "{{ jenkins_url }}/computer/{{ agent_name }}/jenkins-agent.jnlp" \
+          | grep -oP '(?<=<argument>)[a-f0-9]{64}(?=</argument>)' | head -n 1); do
+          echo "Waiting for agent secret..."
+          sleep 5
+        done
+        echo "$secret"
+      register: agent_secret
+      changed_when: false
+
+    - name: Save agent secret as fact
+      set_fact:
+        jenkins_agent_secret: "{{ agent_secret.stdout }}"
+
+    # --- CREAZIONE WORKDIR AGENTE ---
+    - name: Create agent workdir on host
+      file:
+        path: "{{ agent_remote_fs }}"
+        state: directory
+        mode: '0777'
+
+    - name: Download agent.jar from master
+      get_url:
+        url: "{{ jenkins_url }}/jnlpJars/agent.jar"
+        dest: "{{ agent_remote_fs }}/agent.jar"
+        mode: '0755'
+
+    # --- AVVIO CONTAINER AGENTE CORRETTO ---
+    - name: Start Jenkins agent container
+      docker_container:
+        name: "{{ agent_name }}"
+        image: jenkins/inbound-agent:latest
+        state: started
+        restart_policy: always
+        networks:
+          - name: jenkins_net
+        volumes:
+          - "{{ agent_remote_fs }}:/home/jenkins/agent"
+        command: >
+          -url {{ jenkins_url }}
+          -secret {{ jenkins_agent_secret }}
+          -workDir /home/jenkins/agent
+          -name {{ agent_name }}
+

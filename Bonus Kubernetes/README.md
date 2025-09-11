@@ -49,7 +49,7 @@ Quando un Secret viene creato o aggiornato, il Kube API Server lo cifra con la c
 Il Secret cifrato viene scritto in etcd.
 Quando un Pod lo richiede, l’API Server lo decifra prima di restituirlo.
 Così i dati sul disco sono cifrati, ma i Pod li ricevono in chiaro.
-#File di esepio presente ---> encryption-config.yaml
+#Manifest di esempio presente ---> encryption-config.yaml
 
 
 Sealed Secrets

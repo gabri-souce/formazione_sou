@@ -1,0 +1,12 @@
+# Dockerfile per database personalizzato
+FROM postgres:15
+
+# Installa strumenti di rete utili per test
+RUN apt-get update && \
+    apt-get install -y iputils-ping telnet && \
+    rm -rf /var/lib/apt/lists/*
+
+# Variabili d'ambiente PostgreSQL
+ENV POSTGRES_USER=user
+ENV POSTGRES_PASSWORD=password
+ENV POSTGRES_DB=mydb

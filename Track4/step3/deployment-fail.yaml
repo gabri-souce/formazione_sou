@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-fail
+  namespace: step3
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: nginx-fail
+  template:
+    metadata:
+      labels:
+        app: nginx-fail
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
